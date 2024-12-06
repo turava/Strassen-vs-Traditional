@@ -1,0 +1,89 @@
+% Dimensiones a probar: desde matrices pequeñas hasta matrices grandes
+dimensions = [8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096]%, 8192]; 
+
+% Inicialización de vectores para guardar tiempos
+traditional_times = zeros(size(dimensions));
+strassen_times = zeros(size(dimensions));
+
+% Iterar sobre cada tamaño de matriz
+for i = 1:length(dimensions)
+    n = dimensions(i);
+    fprintf('Probando matrices de tamaño %dx%d...\n', n, n);
+    
+    % Generar matrices aleatorias
+    A = rand(n, n);
+    B = rand(n, n);
+    
+    % Medir tiempo para el algoritmo tradicional (implementación manual)
+    tic;
+    C_traditional = traditionalMultiplication(A, B); % Multiplicación tradicional manual
+    traditional_times(i) = toc;
+    
+    % Medir tiempo para el algoritmo de Strassen
+    tic;
+    C_strassen = strassenMultiplication(A, B); % Multiplicación usando Strassen
+    strassen_times(i) = toc;
+end
+
+% Graficar los resultados
+figure;
+plot(dimensions, traditional_times, '-o', 'LineWidth', 1.5, 'DisplayName', 'Algoritmo Tradicional');
+hold on;
+plot(dimensions, strassen_times, '-x', 'LineWidth', 1.5, 'DisplayName', 'Algoritmo Strassen');
+xlabel('Dimensiones de la Matriz (n x n)');
+ylabel('Tiempo de Ejecución (segundos)');
+title('Comparación de Tiempos de Ejecución: Algoritmo Tradicional vs Strassen');
+legend('Location', 'northwest');
+grid on;
+
+% Guardar los tiempos en una tabla
+results_table = table(dimensions', traditional_times', strassen_times', ...
+    'VariableNames', {'Dimensiones', 'Tiempo_Tradicional', 'Tiempo_Strassen'});
+disp('Resultados de comparación:');
+disp(results_table);
+
+% Función para la multiplicación tradicional manual
+function C = traditionalMultiplication(A, B)
+    n = size(A, 1);  % Asumimos que A y B son cuadradas
+    C = zeros(n);    % Inicializamos la matriz resultado
+
+    % Multiplicación manual de matrices
+    for i = 1:n
+        for j = 1:n
+            C(i,j) = sum(A(i,:) .* B(:,j)');  % Suma de productos
+        end
+    end
+end
+
+% Función para multiplicación usando el algoritmo de Strassen
+function C = strassenMultiplication(A, B)
+    n = size(A, 1);
+    if n <= 64  % Umbral ajustable según pruebas
+        C = A * B;
+    else
+        k = n / 2;
+        % Dividir matrices en 4 submatrices
+        A11 = A(1:k, 1:k); A12 = A(1:k, k+1:n);
+        A21 = A(k+1:n, 1:k); A22 = A(k+1:n, k+1:n);
+        B11 = B(1:k, 1:k); B12 = B(1:k, k+1:n);
+        B21 = B(k+1:n, 1:k); B22 = B(k+1:n, k+1:n);
+
+        % Productos intermedios
+        M1 = strassenMultiplication(A11 + A22, B11 + B22);
+        M2 = strassenMultiplication(A21 + A22, B11);
+        M3 = strassenMultiplication(A11, B12 - B22);
+        M4 = strassenMultiplication(A22, B21 - B11);
+        M5 = strassenMultiplication(A11 + A12, B22);
+        M6 = strassenMultiplication(A21 - A11, B11 + B12);
+        M7 = strassenMultiplication(A12 - A22, B21 + B22);
+
+        % Combinación de resultados
+        C11 = M1 + M4 - M5 + M7;
+        C12 = M3 + M5;
+        C21 = M2 + M4;
+        C22 = M1 - M2 + M3 + M6;
+
+        % Construir la matriz resultado
+        C = [C11, C12; C21, C22];
+    end
+end
